@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Builds the Windows installer. The page and the connector sit as plain files
+# beside the app rather than inside its archive: Claude Desktop has to be able
+# to run the connector, and the Open CASCADE kernel in the page has to stay a
+# separate, replaceable file (see NOTICE.md).
+appId: io.github.teakzieas.partbench
+productName: PartBench
+copyright: "ScanRuler (c) Stefan Hermann (CNC Kitchen). Desktop wrapper by the PartBench contributors. AGPL-3.0-only."
+afterPack: scripts/after-pack.cjs
+directories:
+  output: release
+  buildResources: assets
+files:
+  - main.cjs
+  - preload.cjs
+  - lib/**
+  - assets/icon.png
+  - package.json
+extraResources:
+  - from: ../dist-desktop
+    to: page
+  - from: ../mcp
+    to: mcp
+    filter:
+      - bin/**
+      - src/**
+      - package.json
+      - LICENSE
+      - README.md
+  - from: ../LICENSE
+    to: licences/LICENSE-AGPL-3.0.txt
+  - from: ../COMMERCIAL.md
+    to: licences/COMMERCIAL.md
+  - from: NOTICE.md
+    to: licences/NOTICE.md
+win:
+  target: nsis
+  icon: assets/icon.png
+nsis:
+  oneClick: true
+  perMachine: false
+  deleteAppDataOnUninstall: false
+  shortcutName: PartBench
+  artifactName: PartBench-Setup-${version}.exe
+publish:
+  provider: github
+  owner: Teakzieas
+  repo: partbench
+  releaseType: release

@@ -23,12 +23,36 @@ export function openCommand(url, platform = process.platform) {
  *  page connecting) — and false when the link is not one to open or the
  *  opener could not be started. */
 export function openInBrowser(url, platform = process.platform) {
+  // PartBench change, 2026-11-05 (not in upstream ScanRuler): a connector that
+  // came with the desktop app brings that app up instead of a browser tab.
+  if (process.env.SCANRULER_MCP_DESKTOP_EXE) return openDesktopApp(process.env.SCANRULER_MCP_DESKTOP_EXE)
   if (!SAFE.test(url)) return Promise.resolve(false)
   const { command, args, verbatim } = openCommand(url, platform)
   return new Promise((resolve) => {
     let child
     try {
       child = spawn(command, args, { stdio: 'ignore', detached: true, windowsHide: true, windowsVerbatimArguments: verbatim })
+    } catch {
+      resolve(false)
+      return
+    }
+    child.once('error', () => resolve(false))
+    child.once('spawn', () => {
+      child.unref()
+      resolve(true)
+    })
+  })
+}
+
+/** PartBench change, 2026-11-05: start the desktop app, or bring up the one
+ *  already running. Without ELECTRON_RUN_AS_NODE, which this server runs under,
+ *  the same program starts as the app rather than as Node. */
+function openDesktopApp(exe) {
+  const { ELECTRON_RUN_AS_NODE: _node, ...env } = process.env
+  return new Promise((resolve) => {
+    let child
+    try {
+      child = spawn(exe, [], { stdio: 'ignore', detached: true, windowsHide: false, env })
     } catch {
       resolve(false)
       return

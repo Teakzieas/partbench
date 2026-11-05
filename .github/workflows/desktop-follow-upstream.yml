@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Keeps this fork following ScanRuler. Once a day it looks for new commits at
+# CNCKitchen/scanruler, merges them, and if there were any, starts a new desktop
+# release. Installed copies of the app then update themselves.
+#
+# It stops and opens an issue rather than guess when a merge conflicts, or when
+# upstream changed its workflow files: GitHub does not let this automatic token
+# push those. The issue says what to do.
+name: Follow upstream
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: follow-upstream
+
+jobs:
+  follow:
+    if: ${{ github.repository != 'CNCKitchen/scanruler' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Merge what is new upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          say_stuck() {
+            title="$1"; body="$2"
+            if [ -z "$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')" ]; then
+              gh issue create --title "$title" --body "$body"
+            fi
+          }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream https://github.com/CNCKitchen/scanruler.git
+          git fetch upstream main --no-tags
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "Already up to date with upstream."
+            exit 0
+          fi
+          if ! git merge --no-edit upstream/main; then
+            files=$(git diff --name-only --diff-filter=U)
+            git merge --abort
+            say_stuck 'Upstream merge needs a person' "ScanRuler has new commits that conflict with this fork's changes in:
+
+          \`\`\`
+          $files
+          \`\`\`
+
+          Merge \`upstream/main\` by hand (see desktop/README.md), then run this workflow again."
+            exit 1
+          fi
+          if ! git push origin HEAD:main; then
+            say_stuck 'Upstream changed workflow files: sync by hand' "ScanRuler's new commits could not be pushed automatically, most likely because they change files under \`.github/workflows\`, which this workflow's token may not push.
+
+          Open this repository's front page on GitHub and click **Sync fork**, then **Update branch**. Then run the **Desktop release** workflow by hand under Actions."
+            exit 1
+          fi
+          gh workflow run desktop-release.yml --ref main

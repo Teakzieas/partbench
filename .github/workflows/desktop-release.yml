@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+# Builds the Windows installer and publishes it as a GitHub release, which is
+# where installed copies of the app look for updates. The release notes name
+# the upstream version and credit its author.
+name: Desktop release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release
+
+jobs:
+  release:
+    if: ${{ github.repository != 'CNCKitchen/scanruler' }}
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm --prefix mcp ci --no-audit --no-fund
+          npm --prefix desktop ci --no-audit --no-fund
+      - name: Test
+        shell: bash
+        run: |
+          npm --prefix desktop test
+          npm --prefix mcp test
+      - name: Set the version
+        id: version
+        shell: bash
+        # The update check needs a number that only goes up, whatever upstream's
+        # own version does, so the last part counts this workflow's runs.
+        run: |
+          version="1.0.$GITHUB_RUN_NUMBER"
+          upstream=$(node -p "require('./package.json').version")
+          npm --prefix desktop version "$version" --no-git-tag-version --allow-same-version
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
+      - name: Build and publish the installer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npm --prefix desktop run release
+      - name: Write the release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ steps.version.outputs.version }}"
+          cat > notes.md <<EOF
+          Based on [ScanRuler](https://github.com/CNCKitchen/scanruler) ${{ steps.version.outputs.upstream }} by **Stefan Hermann (CNC Kitchen)**. PartBench is an unofficial desktop build, not made or endorsed by them. If you find it useful, please [support the original author](https://ko-fi.com/cnckitchen).
+
+          **To install:** download \`PartBench-Setup-${{ steps.version.outputs.version }}.exe\` below and run it. The installer is not code-signed, so Windows may show "Windows protected your PC". Choose **More info**, then **Run anyway**. Installed copies update themselves.
+
+          **Source:** this release's complete source is commit ${GITHUB_SHA}, under the AGPL-3.0-only.
+          EOF
+          gh release edit "$tag" --title "PartBench ${{ steps.version.outputs.version }}" --notes-file notes.md --draft=false --latest

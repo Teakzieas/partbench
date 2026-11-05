@@ -1,0 +1,26 @@
+{
+  "name": "partbench",
+  "productName": "PartBench",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An unofficial Windows desktop build of ScanRuler by Stefan Hermann (CNC Kitchen), with a built-in Claude connector.",
+  "license": "AGPL-3.0-only",
+  "author": "Teakzieas",
+  "homepage": "https://github.com/Teakzieas/partbench",
+  "main": "main.cjs",
+  "scripts": {
+    "page": "cd .. && npx vite build --config desktop/vite.config.mts",
+    "start": "electron .",
+    "icon": "electron scripts/make-icon.cjs",
+    "test": "node --test \"tests/*.test.*\"",
+    "dist": "npm run page && electron-builder --win nsis --publish never",
+    "release": "npm run page && electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  }
+}
