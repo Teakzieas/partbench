@@ -47,22 +47,25 @@ jobs:
           npm --prefix desktop version "$version" --no-git-tag-version --allow-same-version
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "upstream=$upstream" >> "$GITHUB_OUTPUT"
-      - name: Build and publish the installer
+      - name: Build the installer
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: npm --prefix desktop run release
-      - name: Write the release notes
+        run: npm --prefix desktop run dist
+      # One command publishes the release with all its files. electron-builder's
+      # own publishing creates the release twice at once and GitHub refuses one.
+      - name: Publish the release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v${{ steps.version.outputs.version }}"
+          version="${{ steps.version.outputs.version }}"
           cat > notes.md <<EOF
           Based on [ScanRuler](https://github.com/CNCKitchen/scanruler) ${{ steps.version.outputs.upstream }} by **Stefan Hermann (CNC Kitchen)**. PartBench is an unofficial desktop build, not made or endorsed by them. If you find it useful, please [support the original author](https://ko-fi.com/cnckitchen).
 
-          **To install:** download \`PartBench-Setup-${{ steps.version.outputs.version }}.exe\` below and run it. The installer is not code-signed, so Windows may show "Windows protected your PC". Choose **More info**, then **Run anyway**. Installed copies update themselves.
+          **To install:** download \`PartBench-Setup-$version.exe\` below and run it. The installer is not code-signed, so Windows may show "Windows protected your PC". Choose **More info**, then **Run anyway**. Installed copies update themselves.
 
-          **Source:** this release's complete source is commit ${GITHUB_SHA}, under the AGPL-3.0-only.
+          **Source:** this release's complete source is commit $GITHUB_SHA, under the AGPL-3.0-only.
           EOF
-          gh release edit "$tag" --title "PartBench ${{ steps.version.outputs.version }}" --notes-file notes.md --draft=false --latest
+          gh release create "v$version" --target "$GITHUB_SHA" --title "PartBench $version" --notes-file notes.md --latest \
+            "desktop/release/PartBench-Setup-$version.exe" \
+            "desktop/release/PartBench-Setup-$version.exe.blockmap" \
+            desktop/release/latest.yml
