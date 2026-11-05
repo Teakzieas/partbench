@@ -6,6 +6,15 @@ name: Desktop release
 
 on:
   workflow_dispatch:
+  # A change to the desktop app itself. Merges from upstream start this workflow
+  # by hand instead (desktop-follow-upstream.yml), because a push made with the
+  # automatic token doesn't start other workflows.
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - 'mcp/src/browser.js'
+      - '.github/workflows/desktop-release.yml'
 
 permissions:
   contents: write
