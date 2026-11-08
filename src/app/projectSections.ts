@@ -63,6 +63,12 @@ export interface ProjectSection<J = unknown> {
    *  readout and a refusal to replace it to name; a count of none is left
    *  out. */
   holds?(): Record<string, number>
+  /** What of the section's work a scale of the scan would leave behind at
+   *  the old size, each in words ("3 features") — empty when everything it
+   *  holds scales with the scan, or rides on the scan's file. Left out,
+   *  everything `holds` counts (or `holdsWork` says) is taken to stay
+   *  behind, and Scale part refuses while it is there (app/partScale). */
+  scaleHolds?(): string[]
   /** Unfinished work in the section's editors, which is not saved but is
    *  worth a warning before the page is left. */
   hasDraft?(): boolean
@@ -75,6 +81,8 @@ const sections: ProjectSection[] = []
 
 /** Own a part of the project file — see ProjectSection. */
 export function registerProjectSection<J>(section: ProjectSection<J>): () => void {
+  // A key the app writes itself would be overwritten, or overwrite it.
+  if (CORE_KEYS.has(section.key)) throw new Error(`The project key "${section.key}" is the app's own.`)
   if (sections.some((s) => s.key === section.key)) throw new Error(`Two project sections share the key "${section.key}".`)
   sections.push(section as ProjectSection)
   return () => {

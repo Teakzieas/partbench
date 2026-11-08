@@ -11,7 +11,7 @@ import type { CreaseSetting } from '../core/geometry/crease'
 import type { Rigid } from '../core/deviation/rigid'
 import type { SceneManager } from '../viewer/SceneManager'
 import { grayscaleOf } from '../core/flat/edgeClient'
-import { imagePixelsPerMm } from '../core/flat/image'
+import { assertImageDecodable, imagePixelsPerMm } from '../core/flat/image'
 import { is3mfFile, isModelFile, isReferenceFile, isTextureFile } from '../core/formats'
 import type { MeshUnits } from '../core/meshUnits'
 import { useStore } from '../state/store'
@@ -71,15 +71,15 @@ const NO_VIEW: PreparedView = { commit() {}, dispose() {} }
  *  in the source beside it, and the part wears the colours they give it —
  *  or that a 3MF's packed images give it. Without a viewport — a test, a
  *  headless run — the model goes to the worker alone. */
-export async function prepareScan(client: MeshWorkerClient, scene: SceneManager | null, file: File, crease: CreaseSetting, transform?: Rigid, given: MeshUnits = 'mm'): Promise<PreparedScan> {
+export async function prepareScan(client: MeshWorkerClient, scene: SceneManager | null, file: File, crease: CreaseSetting, transform?: Rigid, given: MeshUnits = 'mm', scale = 1): Promise<PreparedScan> {
   if (!isModelFile(file.name)) throw new Error(isTextureFile(file.name)
     ? `${file.name} is part of a textured scan — open it together with its OBJ (pick or drop the OBJ, the .mtl and the image at once, or drop their folder).`
     : 'Unsupported file type — use STL, PLY, OBJ, 3MF or STEP.')
   const units = is3mfFile(file.name) ? 'mm' : given // units-ok: a 3MF file is in millimetres, a MeshUnits id
   const buffer = await file.arrayBuffer()
   const extras = await companionBytes(companionsOf(file))
-  const source = { name: file.name, bytes: new Uint8Array(buffer.slice(0)), units, ...(extras.length > 0 ? { companions: extras } : {}) }
-  const { id, mesh } = await client.prepareScan(file.name, buffer, crease, transform, units, await scanCompanions(file.name, source.bytes, extras))
+  const source = { name: file.name, bytes: new Uint8Array(buffer.slice(0)), units, ...(scale !== 1 ? { scale } : {}), ...(extras.length > 0 ? { companions: extras } : {}) }
+  const { id, mesh } = await client.prepareScan(file.name, buffer, crease, transform, units, await scanCompanions(file.name, source.bytes, extras), scale)
   try {
     const view = scene ? scene.prepareMesh(mesh.positions, mesh.indices, mesh.normals, mesh.wireSlots, mesh.copyOf, mesh.colors ?? null) : NO_VIEW
     return { id, mesh, source, view }
@@ -106,6 +106,7 @@ export async function prepareNominal(client: MeshWorkerClient, scene: SceneManag
 
 export async function prepareImage(file: File): Promise<PreparedImage> {
   const bytes = new Uint8Array(await file.arrayBuffer())
+  assertImageDecodable(file.name, bytes)
   const meta = imagePixelsPerMm(bytes)
   const bitmap = await createImageBitmap(file, { imageOrientation: 'flipY' })
   try {

@@ -167,6 +167,7 @@ export function useSceneSync({
   const markGesture = useMark((s) => s.gesture)
   const markErase = useMark((s) => s.erase)
   const markBackfaces = useMark((s) => s.backfaces)
+  const markStraight = useMark((s) => s.straight)
   const brushDiameter = useMark((s) => s.diameter)
   const paintSession = painting && paintWorkspace
   const markSession = marking && markWorkspace
@@ -194,6 +195,7 @@ export function useSceneSync({
       erase: markErase,
       gesture: pluginMarkColor !== null && !pluginGestures ? null : markGesture,
       backfaces: markBackfaces,
+      straight: markStraight,
     })
   }, [
     picking,
@@ -206,6 +208,7 @@ export function useSceneSync({
     markErase,
     markGesture,
     markBackfaces,
+    markStraight,
   ])
 
   // Inverting is asked for in a panel and done here — unless the split-screen
@@ -296,6 +299,7 @@ export function useSceneSync({
   const draft = useStore((s) => s.draft)
   const dimDraft = useStore((s) => s.dimDraft)
   const alignDraft = useStore((s) => s.alignDraft)
+  const scaleDraft = useStore((s) => s.scaleDraft)
   const sectionDraft = useStore((s) => s.sectionDraft)
   // Elements referenced by the dimension, construction, alignment or section
   // being built read as selected in the viewport, however they were chosen.
@@ -570,13 +574,23 @@ export function useSceneSync({
               color: '#2e7d46',
             })),
           ]
-        : (pickDraftPoints ?? []).map((p, i) => ({
-            point: p,
-            label: `${i + 1}`,
-            color: draftColor,
-          })),
+        : scaleDraft
+          ? scaleDraft.refs.flatMap((r, row) =>
+              r.kind === 'points'
+                ? r.points.map((p, i) => ({
+                    point: p,
+                    label: `${scaleDraft.refs.length > 1 ? `${row + 1}` : ''}${i === 0 ? 'A' : 'B'}`,
+                    color: '#b8860b',
+                  }))
+                : [],
+            )
+          : (pickDraftPoints ?? []).map((p, i) => ({
+              point: p,
+              label: `${i + 1}`,
+              color: draftColor,
+            })),
     )
-  }, [alignDraft, pickDraftPoints, draftColor])
+  }, [alignDraft, scaleDraft, pickDraftPoints, draftColor])
 
   // The alignment being set up is shown on the part, not just described in the
   // panel: the moment a slot has what it needs the scan swings onto the axis
@@ -907,6 +921,12 @@ export function useSceneSync({
   useEffect(() => {
     sceneRef.current?.setViewTheme(sceneTheme(viewTheme, dark))
   }, [viewTheme, dark])
+
+  // How large the points and grips held on the screen are drawn.
+  const markSize = usePrefs((s) => s.markSize)
+  useEffect(() => {
+    sceneRef.current?.setMarkSize(markSize)
+  }, [markSize])
 
   // How heavy the section cuts are drawn — the operator's, like the scheme.
   const sectionLines = usePrefs((s) => s.sectionLines)

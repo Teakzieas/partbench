@@ -50,6 +50,7 @@ import type { WorkerContext } from './workerPluginApi'
 import type { MeshBVH } from 'three-mesh-bvh'
 import { reply } from './workerRpc'
 import { firstHits, firstHitsAt, localNoise, scanRim, scanRims } from './geometry/scanQa'
+import { sheetReading, type SheetReading } from './geometry/sheet'
 import { rimLoops, type RimLoop } from './geometry/openEdges'
 import { DEFAULT_VOLUME_BETA, volumeDeviation } from './deviation/volume'
 import { WindingTree } from './deviation/winding'
@@ -219,6 +220,14 @@ self.onmessage = (ev: MessageEvent<WorkerRequest>) => {
   // holding the queue up.
   if (msg.type === 'align-abort') {
     alignAborted = true
+    // A fit still waiting its turn is stopped where it waits: starting
+    // clears the flag, so it would otherwise run and apply as if never stopped.
+    for (let i = queued.length - 1; i >= 0; i--) {
+      const waiting = queued[i]
+      if (waiting.type !== 'align') continue
+      queued.splice(i, 1)
+      post({ type: 'align-stopped', requestId: waiting.requestId })
+    }
     return
   }
   if (alignRun || holding) {
@@ -589,7 +598,13 @@ function handle(msg: Exclude<WorkerRequest, { type: 'align-abort' }>): void {
         post({ type: 'scan-rim-ok', requestId: msg.requestId, rim }, rim ? [rim.vertices.buffer, rim.positions.buffer, rim.corners.buffer] : [])
       } else {
         const rims = scanRims(graph.positions, scanLoops(graph), msg.rims)
-        post({ type: 'scan-qa-ok', requestId: msg.requestId, rims, noise: localNoise(graph, msg.sample) })
+        const noise = localNoise(graph, msg.sample)
+        let sheet: SheetReading | undefined
+        if (msg.sheet) {
+          if (!scanSolid) scanSolid = buildSolidIndex(graph.positions, graph.indices)
+          sheet = sheetReading(graph, scanSolid, { ...msg.sheet, noise: noise.median })
+        }
+        post({ type: 'scan-qa-ok', requestId: msg.requestId, rims, noise, ...(sheet ? { sheet } : {}) })
       }
     } catch (e) {
       post({ type: 'error', requestId: msg.requestId, message: errorText(e) })

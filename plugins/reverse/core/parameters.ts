@@ -114,6 +114,15 @@ export function nameProblem(name: string, others: readonly Parameter[], self?: n
 export function evaluateParameters(parameters: readonly Parameter[]): ParameterTable {
   const byName = new Map<string, Parameter>()
   for (const p of parameters) if (!byName.has(p.name)) byName.set(p.name, p)
+  // Parameters by their name in lower case, in table order: a name can
+  // clash only with those, so a long table is not searched once a name.
+  const byLowerName = new Map<string, Parameter[]>()
+  for (const p of parameters) {
+    const key = p.name.toLowerCase()
+    const same = byLowerName.get(key)
+    if (same) same.push(p)
+    else byLowerName.set(key, [p])
+  }
   const readings = new Map<number, ParameterReading>()
   const visiting: Parameter[] = []
   const looped = new Map<number, string>()
@@ -129,7 +138,7 @@ export function evaluateParameters(parameters: readonly Parameter[]): ParameterT
     }
     visiting.push(p)
     let reading: ParameterReading
-    const problem = nameProblem(p.name, parameters, p.id)
+    const problem = nameProblem(p.name, byLowerName.get(p.name.toLowerCase()) ?? [], p.id)
     if (problem) reading = { id: p.id, name: p.name, kind: p.kind, value: null, error: problem }
     else {
       const scope: Scope = (name) => {
@@ -146,6 +155,26 @@ export function evaluateParameters(parameters: readonly Parameter[]): ParameterT
     if (loop) reading = { ...reading, value: null, error: loop }
     readings.set(p.id, reading)
     return reading
+  }
+  // Read first those whose parameters are read already, the ones they read
+  // found without recursion: a long chain of parameters each reading the
+  // next is then read one link at a time, not as deep as it is long. One
+  // in a loop is left for the reading below, which says where it goes round.
+  const ordered = new Set<Parameter>()
+  for (const root of parameters) {
+    const stack: [Parameter, boolean][] = [[root, false]]
+    while (stack.length > 0) {
+      const [p, expanded] = stack.pop()!
+      const reads = references(p.expression).flatMap((name) => byName.get(name) ?? [])
+      if (expanded) {
+        if (reads.every((q) => readings.has(q.id))) read(p)
+        continue
+      }
+      if (ordered.has(p)) continue
+      ordered.add(p)
+      stack.push([p, true])
+      for (const q of reads) if (!ordered.has(q)) stack.push([q, false])
+    }
   }
   const list = parameters.map(read)
   const byReadName = new Map<string, ParameterReading>()

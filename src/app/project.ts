@@ -45,8 +45,10 @@ import { DEFAULT_MAP_FACING_DEG } from '../core/deviation/deviation'
 export interface SourceFiles {
   /** `units` is what the bytes' coordinates are in — the mesh was read in
    *  millimetres from them, and is read the same way again from a project or
-   *  after a worker restart. Absent means millimetres. */
-  scan: { name: string; bytes: Uint8Array; units?: MeshUnits; companions?: ScanCompanion[] } | null
+   *  after a worker restart. Absent means millimetres. `scale` is the
+   *  factor the scan was scaled by to its true size (core/scanScale), read
+   *  into it on top of the units the same way; absent means 1. */
+  scan: { name: string; bytes: Uint8Array; units?: MeshUnits; scale?: number; companions?: ScanCompanion[] } | null
   reference: { name: string; bytes: Uint8Array; units?: MeshUnits } | null
   image: { name: string; bytes: Uint8Array } | null
 }
@@ -167,12 +169,16 @@ export function collectProject(
   // a section in use writes its part over a kept one of the same key.
   const kept = keptParts()
   Object.assign(manifest, kept.parts)
-  members.push(...kept.members)
   const ctx = { sources, scanSaved: manifest.scan !== null, addMember: (name: string, bytes: Uint8Array) => members.push({ name, bytes }) }
   for (const section of projectSections()) {
     const part = section.collect(ctx)
     if (part !== undefined) manifest[section.key] = part
   }
+  // A kept file goes in only under a name nothing in this session writes:
+  // the project it came from may have used a name the scan, reference or
+  // image is saved under, and the archive keeps the last file of a name.
+  const taken = new Set(members.map((m) => m.name))
+  members.push(...kept.members.filter((m) => !taken.has(m.name)))
   return { manifest, members }
 }
 
@@ -219,6 +225,8 @@ function coreProject(
       member,
       ...(companions.length > 0 ? { companions } : {}),
       ...(sources.scan.units && sources.scan.units !== 'mm' ? { units: sources.scan.units } : {}),
+      ...(sources.scan.scale !== undefined && sources.scan.scale !== 1 ? { scale: sources.scan.scale } : {}),
+      ...(s.scanScale ? { scaled: s.scanScale } : {}),
       appliedAlignment: s.appliedAlignment ? rigidToJson(s.appliedAlignment) : null,
       elements: s.elements.map(elementToJson),
       dimensions: s.dimensions,
@@ -369,6 +377,8 @@ function scanPartState(p: ScanPart): Partial<ReturnType<typeof useStore.getState
     // see sectionCuts.
     sections: (p.sections ?? []).map(sectionFromJson),
     sectionDraft: null,
+    scaleDraft: null,
+    scanScale: p.scaled ?? null,
     nextSectionNumber: p.nextSectionNumber ?? 1,
   }
 }

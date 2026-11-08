@@ -7,9 +7,408 @@ saves carry the same number as `appVersion`. How a release is cut is in
 
 ## Unreleased
 
+- **No spike in Fusion from a plane a hair off a cone's apex** (2026-11-08,
+  issue 97). A wedge whose sides were meant to pass through a revolve's axis,
+  but missed it by 0.00001 mm because the sketch was rounded, cut the cones
+  in tiny hyperbolas centred on their apexes, far outside the part. ScanRuler
+  read them as the straight edges they are, and the STEP check passed, but
+  Fusion drew a spike out to the apex. The STEP export now writes such an
+  edge as a straight line, the STEP check fails on one left in a file, and
+  the body check names them. Thanks to daniel-vork.
+- **Holes and rims found right on scans over 2.1 million vertices**
+  (2026-11-08, issue 34). Past that size, edges of the mesh could be taken
+  for one another, so a scan's open rims came out broken or misplaced, in
+  the gaps a model reports and in the volume deviation. Thanks to Jozkah.
+- **Circles and spheres fitted to a short arc or a shallow cap read their
+  true radius** (2026-11-08, issue 34). The fit stopped after a fixed number
+  of steps, long before it had settled when only part of the circle or
+  sphere was scanned, so the radius came out too small: a 30° arc of R10
+  read 9.84. It now runs until it has settled, which takes only a few steps.
+  Thanks to Jozkah.
+- **Angularity reads right for a basic angle over 90°** (2026-11-08, issue
+  34). A face drawn at 150° to its datum read as far off as it could be.
+  The basic angle is now taken the way the face's lean is, so 150° is the
+  same lean as 30° the other way. Thanks to Jozkah.
+- **Trim with a measured cone builds the right cone** (2026-11-08, issue
+  34). Where the cone's apex was within reach of the trim, the tool ran past
+  the apex and came out as a different cone. It now stops just short of the
+  apex. Thanks to Jozkah.
+- **A circular sketch pattern keeps turned copies where it put them**
+  (2026-11-08, issue 34). Each copy took the original's horizontal and
+  vertical relations, so a rectangle turned 120° was pulled level or
+  distorted by the next solve. A copy turned a quarter now has them swapped,
+  and one turned by any other angle has its sides held parallel and square
+  to each other instead. Thanks to Jozkah.
+- **The privacy policy says what is kept and fetched** (2026-11-08, issue
+  34). It said scans stay in memory and four preferences are stored. It now
+  says that a recovery copy of unsaved work, files included, is kept in the
+  browser's IndexedDB storage, that settings (the agent connection's token
+  among them) are kept in localStorage, and that a link with `?open=` or
+  `/s/` fetches its file from where it points. Thanks to Jozkah.
+- **A fit tolerance of 0.05 can be typed** (2026-11-08, issue 81). The Fit
+  options window took each keystroke on its own, and "0.0" on the way to
+  0.05 is no tolerance, so the field cleared. Its number fields now take
+  what you type when you press Enter or leave the field, as the other
+  fields in ScanRuler do. The same goes for the polygon's side count
+  (typing 12 gave 62), the span count of a patch network's strip, and the
+  agent connection's port, which jumped back to the default while you
+  typed. Thanks to neilyoung and Jozkah.
+- **A project saved over an older one opens again** (2026-11-08, issue 83).
+  Saving a project where one of the same name already was could leave
+  `MyProject.scanruler-2`, which ScanRuler would not open. Such names now
+  open, from the Open button, by dropping the file, or by link, and the Open
+  dialog offers them. A project saved under any other name is recognised by
+  what is in the file. Thanks to upex-yes.
+- **A point's label no longer hides the point, and points and grips can be
+  drawn larger** (2026-11-08, issue 47). The label above a point or a line
+  was lifted along the part's Y axis, so seen from the front or the side it
+  sat on the point, and from other views its lower half covered it. It now
+  stands just above the point on the screen from every side. New in
+  Settings → Lines, *Points and grips* draws the marks that keep their size
+  on the screen (points, picked spots, the arrows and bars on an element
+  being made, the section's handle) up to 2.5 times as large, for big
+  screens. Thanks to SteemSucker.
+- **A selection box that adds says so while you drag it** (2026-11-08,
+  issue 62). On a sketch's sheet and in 2D Measure, a box dragged with Ctrl,
+  Command or Shift held adds to the selection, but nothing showed that the
+  key had registered until the button was let go; the box's colour tells its
+  direction, not the key. It now bears a + and a heavier border while it
+  adds. Thanks to Starzrng.
+- **Plugins: a password field in a panel looks like the other fields**
+  (2026-11-08, issue 94). An `input type="password"` inside `.field` now
+  takes the same style as number and text fields. Thanks to CW3Ds.
+- **The scan-to-CAD guide says a wall can follow a parameter** (2026-11-08,
+  issue 59). It said a loft's inner wall and an inset sketch take the wall
+  only as a number. Both take a parameter as well: `exprs.inner` on the loft,
+  `exprs.inset` on the inset sketch. Thanks to Mearman and alexgavs.
+- **Development** (2026-11-08, issue 76). The browser tests clear a number
+  field without Cmd+A, which selects nothing in headless Chrome on macOS and
+  failed four Mesh Tools checks there. Thanks to bdawg-ML.
+
+## 0.9.7 — 2026-11-08
+
+- **scanruler-mcp fixes** (2026-11-07, scanruler-mcp 0.6.2). Thanks to Jozkah.
+  - A returned file whose name holds a colon wrote on Windows into a hidden
+    stream and left an empty file. Characters Windows refuses become `_`,
+    and a name such as `CON` gets one in front.
+  - A picture tool no longer writes over a file that is there; a path to a
+    folder still numbers past what is in it.
+  - `--allow-origin` matches the page's address however it is written (a
+    slash at the end, capitals), and a value that is not an address is
+    refused at start.
+  - Numbers of 100 or more in answers keep four decimals: six digits of a
+    coordinate far from the origin had moved it by a tenth of a millimetre
+    or more.
+  - The server's own tools check their arguments: a `timeoutSeconds` that is
+    no number or out of range is refused, where it waited no time at all. A
+    number sent as a string is taken as that number, as before.
+  - An update that stopped because of the arguments it was given is no
+    longer marked as broken.
+  - Copies started at the same moment no longer each make a pairing token,
+    and a damaged `config.json` is kept as `config.json.bad`, not replaced.
+  - A relative `--out` folder is resolved, and the file tools no longer
+    follow a link out of the scan's folder.
+  - A page that stops answering no longer holds a read or a wait past the
+    answer limit, and leaves nothing waiting behind it.
+  - When another page takes the connection over, the calls of the one
+    closing are turned down instead of left hanging.
+  - A batch file of very many calls answers after running them, where it
+    failed past about 125,000.
+  - An answer limit or wait too long for a timer to hold no longer fires at
+    once.
+  - A torn read of `folders.json` no longer wipes the list of folders, and
+    the file is written whole.
+  - The pairing token is left out of call traces.
+- **Scan colours from PLY and OBJ, and sturdier file reading** (2026-11-07).
+  Thanks to Jozkah.
+  - A PLY or OBJ scan that carries a colour on each vertex now opens in
+    colour, as a 3MF does. One colour on every vertex is taken as the
+    exporter's default and left out.
+  - A PLY whose header counts more than the file holds, or names a type it
+    does not know, is refused at once. Before, it could spin or open as
+    garbage.
+  - A PrusaSlicer project with many modifier parts opens faster.
+  - A 3MF with an odd character code or member name gives a clear error.
+  - A project file is held to the ranges the panels set, so a damaged one
+    cannot start a thickness map with a billion rays. Agents' `bands` and
+    `coneRays` stop at 256 to match.
+  - A best fit stopped while it still waited its turn no longer runs anyway.
+  - Edge detection on a 2D image reports only the failure of the request on
+    screen, not of one already replaced.
+- **Undo, agents and recovery hold together better** (2026-11-07). Thanks
+  to Jozkah.
+  - A step that takes a while (a fit, a mesh edit) no longer merges into the
+    edit of a field that happened to be open while it ran.
+  - An undo across a scan edit that fails halfway puts the scan back as it
+    was, so scan and measurements stay on the same side of the step.
+  - An agent's change that ran out of time is waited for before the next
+    one starts, so their changes don't land in each other's steps. An
+    agent hears when starting over failed.
+  - The agent link, switched off while the browser asks for local network
+    access, stays off.
+  - A plugin that fails to start is left out, not half in use.
+  - Local recovery keeps the newest ten checkpoints of closed pages, for
+    two weeks; before, they piled up and filled the browser's storage. A
+    save or a restore drops the checkpoint it makes needless.
+  - A project opened with files of a plugin not in use keeps them, but they
+    no longer overwrite the scan, reference or image of the same name.
+  - A file opened from a link (`?open=`) is limited to 1 GB.
+  - An image whose header claims more than 16384 × 16384 pixels is refused
+    before decoding.
+  - A rubber band on the 2D sheet is dropped when the browser takes the
+    gesture over, instead of selecting at the next release.
+- **Mesh Tools fixes** (2026-11-07). Thanks to Jozkah.
+  - The undo history keeps edited copies up to 1 GB of memory, dropping
+    the oldest steps past that; it always keeps the newest. Before, a long
+    run of edits on a large scan could run the tab out of memory.
+  - Edits on a copy not yet taken into use count as work: leaving the page
+    or opening another scan asks first.
+  - A survey that fails (islands, holes, shell) says so with a key to try
+    again, instead of spinning on.
+  - A project whose edited copy doesn't fit its scan is refused before it
+    replaces the session.
+  - Cut's offset in inches is read whole, the trim piece's gap colours
+    repaint in place, and the tool panels draw again only when what they
+    show changes.
+
+## 0.9.6 — 2026-11-07
+
+- **The window and the lasso take only surface you can see** (2026-11-07,
+  reported by email). They took every triangle facing the camera inside the
+  outline, so surface hidden behind nearer surface was marked as well: the
+  face behind a rib or boss, the inner wall of a fold, the far side of a
+  bore. Now they take only the surface in front. *Mark through the part*
+  (⧉ Through in the split picker), as the switch is now called, still takes
+  everything the outline encloses. Surface a section has cut away is never
+  marked, with the switch on or off; before, the window and lasso marked it.
+  This applies wherever the window and lasso mark: hand-marked elements, the
+  local fine fit, Mesh Tools and the split picker.
+- **Scale part** (2026-11-07), asked for by a tester who scans with
+  Meshroom. A photogrammetry scan is right in shape but has no size of its
+  own, so it opened as a part a few millimetres across. **Scale part**, under
+  Alignment in 3D Measure, makes it true size from a length measured on the
+  scan and the same length taken on the real part with calipers: a dimension
+  you measured (a distance, a diameter), a sphere's, cylinder's or circle's
+  diameter, or two points clicked on the scan. Several lengths are averaged,
+  the longer ones counting more, and each says how far it is off the average,
+  so a bad one shows. A factor can be typed instead (×25.4 for a file in
+  inches). The part is scaled about its zero point; elements, dimensions and
+  sections scale with it, the project keeps the factor and what it was found
+  from, and undo puts it back. A scan that looks like it has no true size —
+  Meshroom's output, or one a few millimetres or several metres across — says
+  so when it opens. Scale before modelling: it refuses while a Reverse
+  engineer model or notes are built on the scan. Agents run it as
+  `scan.scale`.
+- **A SpaceMouse moves only the window you are working in** (2026-11-07,
+  issue 101). With two ScanRuler windows open, or ScanRuler beside a CAD
+  program, the puck turned the part in every ScanRuler window, the ones in
+  the background too. Now only the focused, visible page follows it, and
+  coming back to a window doesn't jolt the part. Thanks to Myuavbug66.
+- **3MF files that unpack to more than can be held are turned away**
+  (2026-11-07). A small 3MF can claim to unpack to gigabytes and run the tab
+  out of memory. It is now refused before anything is unpacked: at most
+  512 MB a member and 1 GB in all, counting only what is read, so a scan of
+  several million triangles still opens. Thanks to Jozkah.
+- **A framed part stays clear of the hint and the view keys** (2026-11-07).
+  Fit to view and the framing after a load put the part across the whole
+  view, so the hint above and the view keys below covered its top and
+  bottom. It is now centred in what can be seen. Also: the Export mesh list
+  is as wide as its longest format, long Reverse engineer key names wrap
+  instead of being cut off, the units dialog fits its four keys, the agent
+  port and token fields look like the panel's other fields, and small keys
+  are easier to hit. Thanks to Jozkah.
+- **Reverse engineer fixes** (2026-11-07). Thanks to Jozkah.
+  - A project with an imported STEP file never read as saved: the page
+    warned on leaving even right after a save, and recovery wrote the whole
+    project again every two seconds. It now reads as saved.
+  - After a Mesh Tools edit (a smooth, an offset) or an undo across one,
+    splits and compares ran on the scan as it was before. They now take the
+    edited scan.
+  - A project file whose id counters were too low could make removing one
+    feature remove two. The counters now start past every id in use.
+  - A helper kernel that failed to load stayed failed until a reload, and
+    builds lost its share of the work. It is tried again.
+  - An expression nested too deeply, or a long chain of parameters each
+    reading the next, could stop the page. It is now an error of that
+    expression.
+- **Wrap in Mesh Tools** (2026-11-05). A new tool puts one closed skin round
+  a part that is a mess inside: an assembly exported as one file, a casting
+  with channels inside, overlapping or inside-out shells, a scan with cracks.
+  Everything inside is dropped, and every opening narrower than **Close gaps
+  under** is bridged. Where the wrap touches the part it lies on its
+  triangles, and with **Edges: Sharp** its edges and corners are the part's
+  own — a box wraps to twelve triangles. **Grow by** stands it off the part,
+  and turns an open sheet into a solid. The wrap is a preview, its bridges shown in amber, until **Apply**
+  makes it the edited copy as one step of the undo history. It runs on the
+  computer's spare cores and measures only what the outside of the part
+  reaches — the inside of an assembly costs next to nothing: a
+  two-million-triangle scan wraps in about two and a half seconds on an
+  eight-core desktop, and another **Grow by** at the same gap starts from
+  what was measured. **Cancel** stops it. Agents run it as `mesh.wrap` and
+  `mesh.apply_wrap`.
+
+## 0.9.5 — 2026-11-04
+
+- **Mirror in Mesh Tools** (2026-11-04). A new tool reflects the scan across
+  a plane: a coordinate plane or an element, as Cut takes one. **Whole part**
+  reflects all of it, for the left-hand version of a right-hand part.
+  **Symmetric** keeps one side and reflects it onto the other, for a part
+  scanned well on one side only or damaged on one side. The halves join
+  along the plane, so a closed part stays closed. While the tool is in hand
+  the plane and the result are drawn on the part. Each mirror is one step of
+  the undo history. Agents run it as `mesh.mirror`.
+- **Cut and Mirror start on a round number** (2026-11-04, Mesh Tools). Their
+  plane starts through the middle of the part, which was given to the
+  thousandth: a part centred on the origin started at −0.001. It is now
+  rounded to a step of about a hundredth of the part's size, so a centred part
+  starts at 0 and the plane stays near the middle.
+- **Thin sheet metal, read from the scan** (2026-11-04, measuring and Reverse
+  engineer). From an AI agent's report on a 0.3 mm stamped steel cage.
+  - A sketch can be fitted to what you see through a thin sheet instead of a
+    cut through it: the slots and holes of a warped, embossed sheet, where a
+    cut along the sheet traces the beads. Only the scan within a band about
+    the sketch plane counts, so the bottom of a closed cage doesn't show
+    through its top. Each loop becomes lines and arcs, as a fitted cut does.
+  - The scan check reads a sheet's gauge: two skins 0.3 mm apart over most of
+    the part flag it as sheet metal. Before, its thickness through the part
+    read the box across it. It also lists places standing well off the main
+    walls, such as tabs bent inward, so they go on the list before modelling
+    starts.
+  - Height-map levels see through a warp: a sheet bowed a few tenths and
+    raised 0.4 mm at its beads now gives two levels, not one. Each level
+    carries a plane, which an alignment can level on, so a part is levelled
+    on the sheet and not on the bead crowns. The alignment also warns when a
+    face 0.2–0.3 mm away holds more of the scan than the one levelled on.
+  - An outline's arcs carry a point halfway along them, so a slot's
+    half-round end can't be drawn bulging the wrong way.
+- **Smaller fixes for AI agents** (2026-11-04).
+  - A Combine (boolean) takes several tools at once, joined, cut or
+    intersected in one feature. The panel has a "More tools" list.
+  - An extrude of the "largest" region warns when that region is the hole
+    of a ring around it, which on a thin sleeve is larger than the ring.
+  - A sketch's circle, rectangle, slot and polygon can take their sizes from
+    parameters, and a circle can be placed by a point in the world.
+  - In a batch, a call's answer can go to a file, and a later call can take a
+    part of that file by its path. Long readings need not pass through the
+    conversation.
+  - Guides come in smaller parts: two guides read together had reached
+    80,000 characters, more than some clients take in one answer.
+  - A box to frame is written the same way for a 3D picture and a section
+    picture. A picture with nothing in it says why.
+
+- **Rounds whose radius changes along a chain of edges** (2026-11-03, Reverse
+  engineer). In a fillet's Variable mode, several edges of one tangent chain can
+  each have radii of their own, rounded together: R1.1 along a phone's sides and
+  R1.5 across its ends, say. Where two listed edges meet they need the same
+  radius, and a refusal names the place. An edge of the chain that is not
+  listed blends from the radius at one side to the radius at the other. An
+  edge you pick where a listed one ends starts at that edge's radius there.
+  Before, one start-to-end radius ran over the whole chain, so a chain could
+  vary only once.
+- **Kernel updated: occt-wasm 5.7.1 → 5.15.0** (2026-11-03, Reverse engineer).
+  The new version can round several edges at radii of their own in one go, which
+  the rounds above need. The versions between had extruded splines' volumes
+  wrong by up to 2 %; 5.15.0 has them right again, and the seeded test parts
+  build as before. It measures volumes and areas more slowly, which the
+  next entry more than makes up for.
+- **Parts rebuild faster, and show before their faces can be picked**
+  (2026-11-03, Reverse engineer). A rebuild measures each face's area and
+  centre once and keeps them, so after a step only the faces the step changed
+  are measured again. It also keeps each shape's volume, and sizes a body by a
+  quick box round it instead of its exact extremes. A body whose faces still
+  have to be read is drawn at once; its edges and picking follow when they
+  are read. Against 0.9.4: a fan wheel shows in 32 s instead of 53 s, with
+  picking ready at 37 s; a phone case builds in 14 s instead of 34 s; a water
+  pump in 4 s instead of 6 s.
+- **More from building a phone from its drawing** (2026-11-03, Reverse
+  engineer).
+  - A body's id can be given as the answers show it (61.001 for a piece whose
+    id is 61.0009765625) when only one body's id rounds to it.
+  - A mirror kept as a separate body, named by its feature, now means the
+    mirrored copy. Before, a cut naming it was refused as "2 bodies".
+  - A sketch that nothing is built on yet is compared only with sketches whose
+    solids reach its plane. A glass outline drawn above a barrel no longer
+    warns about the barrel's plan 5 mm below.
+  - An edge query with `sharp` leaves out edges whose faces meet within 1°
+    (`sharpDeg` sets the angle). A profile fitted to drawing points, meeting
+    its neighbour a few tenths of a degree off tangent, no longer counts as a
+    sharp edge.
+  - The guides list the ellipse sketch shape. "From a drawing" says to count a
+    table's `2x` and `4x` rows, use the other sheets to place each feature, and
+    split glass, lens and logo off the finished part.
+- **From building a connecting rod from its drawing** (2026-11-03, Reverse
+  engineer).
+  - A join on one chosen body that touches nothing of it now fails and says
+    so, as a cut that takes nothing does. Before, it quietly made a second
+    body. Where only some of its pieces touch, the feature warns which pieces
+    stand apart.
+  - After a sketch edit, an agent's answer lists each arc or circle whose
+    radius changed, with the radius before and after. A tangency added on a
+    rounded drawing value had shrunk an R1 to 0.989, which showed only as
+    11 µm of movement.
+  - With no scan open, an agent's note at a point in the air near the part (a
+    hole's mouth) is pinned on the nearest face and says how far it moved.
+    Before, the point had to lie within 0.8 mm of a face.
+  - "From a drawing" in the guides now says to list every dimension on the
+    sheet before building and tick each one off against the model at the end,
+    and to check a given mass against the volume. It also covers projection
+    methods, dimensions drawn from a centre line, rounded detail values, and
+    two drafted extrudes that meet.
+
+- **A tidier feature list** (2026-11-03, Reverse engineer).
+  - A feature that failed or built with a warning is marked in the list: its
+    name in red or amber, with a ⚠. Its long explanation no longer sits under
+    the row; opening the feature shows it at the top of its box.
+  - Steps between features are listed there in a short line each, a round
+    starting off a face at both ends as one line. The full sentence shows on
+    hover.
+  - A sketch that a feature takes on when it is edited (a station added to a
+    loft, an extrude moved onto another sketch) is hidden, as it is when a
+    feature is created. Before, an agent's run could end with that sketch
+    still drawn over the model.
+- **A full round along any outline** (2026-11-03, Reverse engineer). Rounding both
+  edges of a plate at half its thickness now gives one clean full round along
+  curved outlines too: arcs, splines, a phone's corners between two large arcs.
+  Before, only a plain rounded rectangle with both edges rounded in one go came
+  out clean, after more than a minute. Along an arc or a spline, or with the
+  edges rounded one at a time, hair-thin faces were left behind. Now it takes
+  under a second.
+- **Agents can build from a drawing** (2026-11-03, Reverse engineer). What a run
+  modelling a phone from its accessory drawing ran into, with no scan open:
+  - A sketch fits lines and arcs to a table of points given as numbers
+    (`fit: { points }`) and says how far each point lies off the result.
+    Before, an agent had to fit them by itself.
+  - Bodies can be cut at a plane exactly (`reverse.body.section`) and measured
+    (`reverse.body.probe`: a width or thickness across the part, the distance
+    from a point), so the model can be checked against the drawing's numbers.
+  - The model guide has a "From a drawing" section, and no plan is asked for
+    when there is no scan.
+  - The model guide has an agent name a part with no scan before building it,
+    so its saves and restore points no longer all read "CAD project".
+- **Clearer answers for agents** (2026-11-03, Reverse engineer).
+  - A flat arc made a little rounder no longer reads as moved by millimetres.
+  - Two sketches on opposite ends of a part are no longer warned about as the
+    same wall drawn twice.
+  - A spline that swings past its own points is pointed out.
+  - `reverse.parameter.set` takes `name` as `reverse.parameter.add` does.
+  - A cut's plane offset takes `offset` as a sketch's does.
+  - `type` given where `kind` goes is pointed at `kind`.
+  - A list given where one number goes is answered with what the number is.
+
+- **Straight lines with the brush** (2026-11-01, issue 48). Tick **Straight lines**
+  under the brush, or hold Ctrl (⌘ on a Mac) as you press, and a drag draws one
+  straight line from press to release. An outline shows what it will take, and it
+  marks when you let go. The right button and Alt rub out with it as usual. Shift
+  still orbits, so it could not be that key.
 - **Contributors are credited** (2026-11-01). Each publish to this repository now
   names the people whose work it brings as co-authors, starting with Jozkah and
   Starzrng. CONTRIBUTING.md says how it works.
+- **Reduce mesh: a preview, then Apply** (2026-11-01). A reduced mesh can now be
+  used for analysis. Its result stays a preview that leaves your mesh untouched:
+  if it came out too coarse, tighten the tolerance and reduce again, or
+  **Discard** it. **Apply** makes it the edited copy, one step of the undo
+  history, and **Use for analysis** takes it into every workspace from there.
+  Agents run it as `mesh.apply_reduced`.
 
 ## 0.9.4 — 2026-11-01
 

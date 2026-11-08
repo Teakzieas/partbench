@@ -440,6 +440,8 @@ export class SceneManager {
   constructor(container: HTMLDivElement) {
     this.viewport = new OrthoViewport(container, {
       theme: this.theme,
+      // The hint over the top of the stage and the view keys along its foot.
+      chrome: { top: 40, bottom: 52 },
       // An orbit pivots on whichever part is actually on screen: in the
       // deviation workspace the scan can be hidden behind the reference, or
       // the other way round, and turning about a surface nobody can see reads
@@ -472,6 +474,8 @@ export class SceneManager {
         // has not.
         this.overlays.setPixelScale(this.viewport.worldPerPixel())
         this.sections.setPixelScale(this.viewport.worldPerPixel())
+        // A point's pin stands up the screen, so it follows a turn too.
+        this.overlays.followView()
         // Pins on the far side of the part go away as it turns, if asked to;
         // a no-op unless the view moved.
         this.overlays.updateProbeOcclusion()
@@ -524,6 +528,7 @@ export class SceneManager {
       },
       invalidate: this.invalidate,
       claimDrag: (on) => this.claimDrag('paint', on),
+      navigates: (e) => this.viewport.nav.navigates(e),
       requestHover: () => {
         this.hoverDirty = true
       },
@@ -1312,6 +1317,19 @@ export class SceneManager {
     this.framedClip.radius = this.clipSphere.radius
   }
 
+  /** Whether the stage draws any surface — the scan, the reference, a
+   *  layer's body or an element — and not lines and marks alone: a picture
+   *  of none is an empty frame. */
+  drawsSurface(): boolean {
+    let found = false
+    this.scene.traverseVisible((o) => {
+      if (found || !(o as THREE.Mesh).isMesh) return
+      const m = (o as THREE.Mesh).material
+      found = (Array.isArray(m) ? m : [m]).some((x) => x.visible && x.opacity > 0)
+    })
+    return found
+  }
+
   /** Turn to one of the standard views — top, front, iso and so on — about
    *  the point the camera is looking at, keeping the zoom. */
   viewFrom(view: StandardView): void {
@@ -2031,6 +2049,14 @@ export class SceneManager {
   /** The finished sections, drawn on the part in their colours. */
   setSections(items: readonly SectionOverlayItem[], visible: boolean): void {
     this.sections.setSections(items, visible)
+  }
+
+  /** How large the marks held on the screen are drawn — points, picked
+   *  spots, the arrows and bars on an element being made, the section
+   *  gizmo — as a factor (Settings → Points and grips). */
+  setMarkSize(scale: number): void {
+    this.overlays.setMarkSize(scale)
+    this.grips.setMarkSize(scale)
   }
 
   /** How heavy the section cuts are drawn, in pixels (Settings → Lines). */

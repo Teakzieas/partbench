@@ -16,7 +16,7 @@ import { useThickness } from '../state/thicknessStore'
 import { useFlat } from '../state/flatStore'
 import { forgetKeptParts, keepUnownedParts, projectSections } from './projectSections'
 import { ProjectClient } from '../core/project/projectClient'
-import { PROJECT_EXTENSION, projectStem, rigidFromJson } from '../core/project/manifest'
+import { isProjectName, PROJECT_EXTENSION, projectStem, rigidFromJson, startsAsProject } from '../core/project/manifest'
 import { saveFile } from './exports'
 import {
   blankManifest,
@@ -34,8 +34,19 @@ import type { ImportQueue } from './importQueue'
 import { prepareScan, prepareNominal, prepareImage, runImport, type PreparedScan, type PreparedNominal, type PreparedImage } from './imports'
 import { bundleFiles } from './scanFiles'
 
-export const isProjectFile = (name: string) =>
-  name.toLowerCase().endsWith(`.${PROJECT_EXTENSION}`)
+/** A project by its name: `.scanruler`, or that with a count a browser
+ *  put after it (isProjectName). */
+export const isProjectFile = (name: string) => isProjectName(name)
+
+/** A project by what it holds, for a file whose name says nothing a project
+ *  or a model would: a renamed or oddly saved project still opens. */
+export const holdsProject = async (file: File): Promise<boolean> => {
+  try {
+    return startsAsProject(new Uint8Array(await file.slice(0, 64).arrayBuffer()))
+  } catch {
+    return false
+  }
+}
 
 export function useProject({
   sources,
@@ -133,7 +144,7 @@ export function useProject({
       // the worker's current scan/reference. Any member may still fail here.
       // A member saved in other units is read in millimetres from them again,
       // the way it was when it came in; the manifest checked the value.
-      if (scanFile) scan = await prepareScan(meshClient, sceneRef.current!, bundleFiles([scanFile, ...companions])!, creaseSetting(useStore.getState()), alignment ?? undefined, meshUnitsOf(manifest.scan?.units) ?? 'mm') // units-ok: the file's own units, an id
+      if (scanFile) scan = await prepareScan(meshClient, sceneRef.current!, bundleFiles([scanFile, ...companions])!, creaseSetting(useStore.getState()), alignment ?? undefined, meshUnitsOf(manifest.scan?.units) ?? 'mm', manifest.scan?.scale ?? 1) // units-ok: the file's own units, an id
       if (nominalFile) nominal = await prepareNominal(meshClient, sceneRef.current!, nominalFile, meshUnitsOf(ref?.units) ?? 'mm') // units-ok: the file's own units, an id
       if (imageFile) image = await prepareImage(imageFile)
 
